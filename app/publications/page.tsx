@@ -1,0 +1,4 @@
+import PageIntro from '@/components/site/page-intro';
+import PublicationList from '@/components/site/publication-list';
+export const dynamic='force-dynamic';
+export default function Publications(){return <main><PageIntro eyebrow="Scholarly output" title="Publications" description="Discover research approved for release from the FHST conference and, as the repository grows, across the faculty."/><section className="section shell split"><div><h2>Latest published work</h2><PublicationList/></div><aside className="asidecard"><h3>Browse the repository</h3><p>Browse approved FHST Journal articles and conference proceedings.</p><a className="listlink" href="/journal">FHST Journal <span>→</span></a><a className="listlink" href="/conference/2027/proceedings">FHST-ISC 2027 <span>→</span></a><a className="listlink" href="/research">Research <span>→</span></a></aside></section></main>}

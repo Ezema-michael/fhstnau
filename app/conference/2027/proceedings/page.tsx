@@ -1,0 +1,4 @@
+import PageIntro from '@/components/site/page-intro';
+import PublicationList from '@/components/site/publication-list';
+export const dynamic='force-dynamic';
+export default function Proceedings(){return <main><PageIntro eyebrow="FHST-ISC 2027" title="Conference proceedings" description="Accepted research released by the editorial team for the inaugural conference."/><section className="section shell split"><div><h2>Published papers</h2><PublicationList stream="conference"/></div><aside className="asidecard"><h3>Publication process</h3><p>Acceptance alone does not make a manuscript public. Editors release each record after confirming its title, authors and abstract.</p><p>Manuscript downloads are not publicly available until publication rights and final files have been confirmed.</p><a className="link" href="/conference/2027">Conference overview →</a></aside></section></main>}

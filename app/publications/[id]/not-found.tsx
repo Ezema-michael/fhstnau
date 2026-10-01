@@ -1,0 +1,1 @@
+export default function MissingPaper(){return <main className="section shell"><h1>Publication not found</h1><p>This paper may not have been released for publication.</p><a className="link" href="/publications">Browse publications →</a></main>}

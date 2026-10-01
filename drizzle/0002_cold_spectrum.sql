@@ -1,0 +1,1 @@
+ALTER TABLE `submissions` ADD `stream` text DEFAULT 'conference' NOT NULL;

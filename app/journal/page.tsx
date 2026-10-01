@@ -1,0 +1,4 @@
+import PublicationList from '@/components/site/publication-list';
+import PageIntro from '@/components/site/page-intro';
+
+export default function Journal(){return <main><PageIntro eyebrow="FHST Journal" title="Journal articles and submissions" description="Explore approved articles and follow the editorial review process."/><section className="section shell split"><div><h2>Published articles</h2><PublicationList stream="journal"/></div><aside className="asidecard"><h3>For authors</h3><p>Prepare your manuscript with a title, authors and affiliations, abstract, keywords and journal section. Upload a PDF or DOCX file in the submission portal.</p><p>Editorial policies, aims and scope, journal issues, and the editorial board will be published after Faculty approval.</p><a className="buttonlink" href="/portal">Open submission portal</a><a className="listlink" href="/conference/2027">Scientific conference <span>→</span></a></aside></section></main>}
