@@ -17,7 +17,9 @@ export const submissions = sqliteTable('submissions', {
   title: text('title').notNull(), abstract: text('abstract').notNull(), keywords: text('keywords').notNull(),
   authors: text('authors').notNull(), track: text('track').notNull(),
   stream: text('stream', { enum: ['conference','journal'] }).notNull().default('conference'),
+  isSample: integer('is_sample').notNull().default(0),
   status: text('status', { enum: ['draft','submitted','under_review','revision_requested','accepted','rejected'] }).notNull().default('draft'),
+  finalFileKey: text('final_file_key'), finalFileName: text('final_file_name'), volume: text('volume'), issue: text('issue'), doi: text('doi'), pages: text('pages'), rightsConfirmed: integer('rights_confirmed').notNull().default(0),
   fileKey: text('file_key'), fileName: text('file_name'), fileType: text('file_type'),
   decisionNote: text('decision_note'), publishedAt: integer('published_at'), createdAt: integer('created_at').notNull(), updatedAt: integer('updated_at').notNull(), submittedAt: integer('submitted_at'),
 }, t => [index('submissions_author').on(t.authorId), index('submissions_status').on(t.status)]);
@@ -32,3 +34,5 @@ export const events = sqliteTable('events', {
   id: text('id').primaryKey(), submissionId: text('submission_id').notNull().references(() => submissions.id),
   actorId: text('actor_id').notNull(), action: text('action').notNull(), at: integer('at').notNull(),
 }, t => [index('events_submission').on(t.submissionId)]);
+
+export const siteContent = sqliteTable('site_content', { key: text('key').primaryKey(), value: text('value').notNull(), updatedAt: integer('updated_at').notNull() });

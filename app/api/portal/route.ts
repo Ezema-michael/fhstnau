@@ -1,3 +1,4 @@
+import {installSamples} from '@/lib/samples';
 import { and, eq, desc, inArray } from 'drizzle-orm';
 import { getDb } from '@/db';
 import { users, invitations, submissions, assignments, events } from '@/db/schema';
@@ -9,14 +10,16 @@ const log = async (db:ReturnType<typeof getDb>,submissionId:string,actorId:strin
 export async function GET(request:Request){
   try{
     const user=await actor();if(!user)return fail('Sign in to continue',401);
+    if(user.role==='editor')await installSamples(user);
     const db=getDb(), url=new URL(request.url), detail=url.searchParams.get('id');
     if(detail){
       const submission=await db.select().from(submissions).where(eq(submissions.id,detail)).get();if(!submission)return fail('Submission not found',404);
       const assignment=await db.select().from(assignments).where(and(eq(assignments.submissionId,detail),eq(assignments.reviewerId,user.id))).get();
       if(user.role!=='editor' && submission.authorId!==user.id && !assignment)return fail('Access denied',403);
       const reviews=user.role==='editor'?await db.select({id:assignments.id,reviewerId:assignments.reviewerId,reviewerName:users.name,status:assignments.status,score:assignments.score,recommendation:assignments.recommendation,comments:assignments.comments,confidential:assignments.confidential,conflict:assignments.conflict,completedAt:assignments.completedAt}).from(assignments).innerJoin(users,eq(assignments.reviewerId,users.id)).where(eq(assignments.submissionId,detail)):[];
+      const authorReviews=submission.authorId===user.id&&submission.decisionNote?await db.select({comments:assignments.comments,recommendation:assignments.recommendation}).from(assignments).where(and(eq(assignments.submissionId,detail),eq(assignments.status,'completed'),eq(assignments.conflict,0))):[];
       const history=await db.select().from(events).where(eq(events.submissionId,detail)).orderBy(desc(events.at));
-      return Response.json({user,submission,assignment,reviews,history});
+      return Response.json({user,submission,assignment,reviews,authorReviews,history:user.role==='editor'?history:history.map(h=>({...h,actorId:'',action:h.action.startsWith('Assigned reviewer')?'Reviewer assigned':h.action}))});
     }
     if(url.searchParams.get('people')==='1'){
       if(user.role!=='editor')return fail('Access denied',403);
@@ -46,7 +49,7 @@ export async function POST(request:Request){
         if(!['draft','revision_requested'].includes(existing.status))return fail('This submission cannot be edited now.',409);
         submission=await db.update(submissions).set({title,abstract,authors,keywords,track,stream,updatedAt:now}).where(eq(submissions.id,existing.id)).returning().get();
       }else{
-        submission=await db.insert(submissions).values({id:id(),authorId:user.id,title,abstract,authors,keywords,track,stream,status:'draft',createdAt:now,updatedAt:now}).returning().get();
+        submission=await db.insert(submissions).values({id:id(),authorId:user.id,title,abstract,authors,keywords,track,stream,isSample:body.isSample===true?1:0,status:'draft',createdAt:now,updatedAt:now}).returning().get();
         await log(db,submission.id,user.id,'Draft created');
       }
       return Response.json({submission});
@@ -59,6 +62,8 @@ export async function POST(request:Request){
       if(!s.fileKey)return fail('Upload your manuscript before submitting.');
       const updated=await db.update(submissions).set({status:'submitted',submittedAt:Date.now(),updatedAt:Date.now(),decisionNote:null}).where(and(eq(submissions.id,sid),eq(submissions.status,s.status))).returning().get();
       if(!updated)return fail('Submission changed. Refresh and try again.',409);
+      if(s.status==='revision_requested')await db.update(assignments).set({status:'assigned',score:null,recommendation:null,comments:null,confidential:null,completedAt:null}).where(and(eq(assignments.submissionId,sid),eq(assignments.conflict,0)));
+      if(s.status==='revision_requested'){const active=await db.select().from(assignments).where(and(eq(assignments.submissionId,sid),eq(assignments.conflict,0)));if(active.length)await db.update(submissions).set({status:'under_review'}).where(eq(submissions.id,sid));}
       await log(db,sid,user.id,s.status==='draft'?'Submitted':'Revision submitted');return Response.json({submission:updated});
     }
     if(action==='invite'){
@@ -96,10 +101,13 @@ export async function POST(request:Request){
       if(!s)return fail('Submission not found',404);
       if(s.status!=='accepted')return fail('Only accepted work can be published.',409);
       if(s.publishedAt)return fail('Already published.',409);
+      if(!s.finalFileKey||!s.rightsConfirmed)return fail('Save a final PDF and confirm publication rights first.');
+      if(s.stream==='journal'&&(!s.volume||!s.issue))return fail('Enter a journal volume and issue first.');
       await db.update(submissions).set({publishedAt:Date.now(),updatedAt:Date.now()}).where(eq(submissions.id,sid));
       await log(db,sid,user.id,s.stream==='journal'?'Published in FHST Journal':'Published in conference proceedings');
       return Response.json({ok:true});
     }
+    if(action==='unpublish'){if(user.role!=='editor')return fail('Access denied',403);const s=await db.select().from(submissions).where(eq(submissions.id,sid)).get();if(!s?.publishedAt)return fail('Publication not found',404);await db.update(submissions).set({publishedAt:null,updatedAt:Date.now()}).where(eq(submissions.id,sid));await log(db,sid,user.id,'Publication withdrawn');return Response.json({ok:true})}
     if(action==='decision'){
       if(user.role!=='editor')return fail('Access denied',403);
       const status=body.status;if(!['revision_requested','accepted','rejected'].includes(String(status)))return fail('Invalid decision.');

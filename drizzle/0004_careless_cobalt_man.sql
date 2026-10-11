@@ -1,0 +1,1 @@
+ALTER TABLE `submissions` ADD `is_sample` integer DEFAULT 0 NOT NULL;

@@ -1,0 +1,1 @@
+import Samples from './samples';export default function Page(){return <Samples/>}

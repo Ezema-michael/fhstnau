@@ -22,6 +22,20 @@
       "when": 1790892097881,
       "tag": "0002_cold_spectrum",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1791330297181,
+      "tag": "0003_glorious_tarot",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1791366094176,
+      "tag": "0004_careless_cobalt_man",
+      "breakpoints": true
     }
   ]
 }
