@@ -66,14 +66,7 @@ export async function POST(request:Request){
       if(s.status==='revision_requested'){const active=await db.select().from(assignments).where(and(eq(assignments.submissionId,sid),eq(assignments.conflict,0)));if(active.length)await db.update(submissions).set({status:'under_review'}).where(eq(submissions.id,sid));}
       await log(db,sid,user.id,s.status==='draft'?'Submitted':'Revision submitted');return Response.json({submission:updated});
     }
-    if(action==='invite'){
-      if(user.role!=='editor')return fail('Access denied',403);
-      const email=norm(body.email,254).toLowerCase(),role=body.role;
-      if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)||!['reviewer','editor'].includes(String(role)))return fail('Enter a valid email and role.');
-      await db.insert(invitations).values({email,role:role as 'reviewer'|'editor',createdAt:Date.now()}).onConflictDoUpdate({target:invitations.email,set:{role:role as 'reviewer'|'editor'}});
-      const existing=await db.select().from(users).where(eq(users.email,email)).get();if(existing)await db.update(users).set({role:role as 'reviewer'|'editor'}).where(eq(users.id,existing.id));
-      return Response.json({ok:true});
-    }
+    if(action==='invite')return fail('Account and role changes require the Super Admin area.',403);
     if(action==='assign'){
       if(user.role!=='editor')return fail('Access denied',403);
       const s=await db.select().from(submissions).where(eq(submissions.id,sid)).get();if(!s)return fail('Submission not found',404);

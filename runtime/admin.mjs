@@ -1,0 +1,20 @@
+import {randomUUID} from 'node:crypto';import {sqlite} from './database.mjs';import {normalEmail,validEmail,hashPassword} from './auth.mjs';
+export const roles=['author','reviewer','editor','super_admin'];
+export class AdminError extends Error{constructor(message,status=400){super(message);this.status=status}}
+export function activeAdmin(db,id){return db.prepare("SELECT u.id FROM users u JOIN auth_accounts a ON a.user_id=u.id WHERE u.id=? AND u.role='super_admin' AND a.disabled=0 AND a.must_change=0").get(id)}
+export function protectLastAdmin(db,userId,role,disabled){const existing=db.prepare('SELECT u.role,a.disabled FROM users u JOIN auth_accounts a ON a.user_id=u.id WHERE u.id=?').get(userId);if(existing?.role==='super_admin'&&!existing.disabled&&(role!=='super_admin'||disabled)){const count=db.prepare("SELECT count(*) AS n FROM users u JOIN auth_accounts a ON a.user_id=u.id WHERE u.role='super_admin' AND a.disabled=0").get().n;if(count<=1)throw new AdminError('Keep at least one active Super Admin.',409)}}
+export async function manageAccount(actorId,body){const action=body.action;const db=sqlite();if(!activeAdmin(db,actorId))throw new AdminError('Super Admin access required.',403);
+ let passwordHash;if(action==='create'||action==='reset')passwordHash=await hashPassword(body.password);
+ const email=normalEmail(body.email),name=typeof body.name==='string'?body.name.trim():'';
+ if(action==='create'&&(!validEmail(email)||!name||name.length>120||!roles.includes(body.role)))throw new AdminError('Provide a valid name, email and role.');
+ db.exec('BEGIN IMMEDIATE');try{if(!activeAdmin(db,actorId))throw new AdminError('Super Admin access required.',403);let targetId=typeof body.id==='string'?body.id:'';let details={};
+ if(action==='create'){const existing=db.prepare('SELECT u.id,a.user_id AS account FROM users u LEFT JOIN auth_accounts a ON a.user_id=u.id WHERE email=?').get(email);if(existing?.account)throw new AdminError('This account already exists. Use reset password or change role.',409);targetId=existing?.id||randomUUID();db.prepare('INSERT INTO users(id,email,name,role,created_at) VALUES(?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,role=excluded.role').run(targetId,email,name,body.role,Date.now());db.prepare('INSERT INTO auth_accounts(user_id,password_hash,must_change,disabled) VALUES(?,?,1,0)').run(targetId,passwordHash);db.prepare('DELETE FROM invitations WHERE email=?').run(email);details={email,role:body.role};
+ }else{const target=db.prepare('SELECT u.id,u.role,a.disabled FROM users u JOIN auth_accounts a ON a.user_id=u.id WHERE u.id=?').get(targetId);if(!target)throw new AdminError('Account not found.',404);
+ if(action==='role'){if(!roles.includes(body.role))throw new AdminError('Choose a valid role.');if(actorId===targetId&&body.role!=='super_admin')throw new AdminError('Ask another Super Admin to change your role.',409);protectLastAdmin(db,targetId,body.role,target.disabled);db.prepare('UPDATE users SET role=? WHERE id=?').run(body.role,targetId);details={from:target.role,to:body.role};
+ }else if(action==='disable'||action==='reactivate'){const disabled=action==='disable'?1:0;if(actorId===targetId&&disabled)throw new AdminError('You cannot disable your own account.',409);protectLastAdmin(db,targetId,target.role,disabled);db.prepare('UPDATE auth_accounts SET disabled=? WHERE user_id=?').run(disabled,targetId);details={disabled:!!disabled};
+ }else if(action==='reset'){if(actorId===targetId)throw new AdminError('Use Account → Change password for your own account.');db.prepare('UPDATE auth_accounts SET password_hash=?,must_change=1 WHERE user_id=?').run(passwordHash,targetId);details={mustChange:true};
+ }else throw new AdminError('Unknown action.');db.prepare('DELETE FROM auth_sessions WHERE user_id=?').run(targetId);
+ }
+ db.prepare('INSERT INTO admin_audit VALUES(?,?,?,?,?,?)').run(randomUUID(),actorId,targetId,action,JSON.stringify(details),Date.now());db.exec('COMMIT');return {ok:true,id:targetId};
+ }catch(e){db.exec('ROLLBACK');throw e}
+}

@@ -142,3 +142,15 @@ Faculty approval, official contacts, privacy/retention terms, fees and licensing
 Run `pnpm build` and `pnpm test:vps`. The automated integration test uses a temporary database and actual production HTTP routes for sign-in, forced password change, access restrictions, manuscript upload, assignment, review and publication. It does not contact the Faculty or migrate existing Sites data.
 
 This environment did not provide Docker Engine, so image building, the actual Compose deployment, DNS and HTTPS must be checked on your VPS. This package has not been deployed to a server by Codex.
+
+## Super Admin account management
+
+After updating, promote your existing editor once:
+
+```bash
+docker compose exec app node scripts/promote-admin.mjs YOUR_EMAIL
+```
+
+This preserves the password and revokes existing sessions. Sign in again, then open `/portal/admin` (also linked in the portal sidebar). Super Admins can create accounts with temporary passwords, change roles, reset passwords and disable/reactivate users. Temporary passwords require a change at first login. Account changes revoke sessions and are audited without storing plaintext passwords. Editors cannot create accounts or change roles through the legacy endpoint. At least one active Super Admin must remain; self-disable and self-demotion are blocked.
+
+Email invitations are not configured. Share credentials privately. The terminal account command remains an administrator recovery tool. Password reset does not reactivate disabled accounts.

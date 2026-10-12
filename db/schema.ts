@@ -4,7 +4,7 @@ export const users = sqliteTable('users', {
   id: text('id').primaryKey(),
   email: text('email').notNull(),
   name: text('name').notNull(),
-  role: text('role', { enum: ['author','reviewer','editor'] }).notNull().default('author'),
+  role: text('role', { enum: ['author','reviewer','editor','super_admin'] }).notNull().default('author'),
   createdAt: integer('created_at').notNull(),
 }, t => [uniqueIndex('users_email').on(t.email)]);
 export const invitations = sqliteTable('invitations', {

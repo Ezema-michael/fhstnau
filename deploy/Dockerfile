@@ -13,7 +13,7 @@ COPY --from=build --chown=node:node /app/.next/standalone ./
 COPY --from=build --chown=node:node /app/.next/static ./.next/static
 COPY --from=build --chown=node:node /app/public ./public
 COPY --from=build --chown=node:node /app/runtime ./runtime
-COPY --from=build --chown=node:node /app/scripts/account.mjs /app/scripts/backup.mjs ./scripts/
+COPY --from=build --chown=node:node /app/scripts/account.mjs /app/scripts/backup.mjs /app/scripts/promote-admin.mjs ./scripts/
 COPY --from=build --chown=node:node /app/drizzle ./drizzle
 RUN mkdir /data /backups && chown node:node /data /backups
 USER node
