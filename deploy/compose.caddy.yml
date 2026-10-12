@@ -1,0 +1,16 @@
+services:
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - fhst_caddy_data:/data
+      - fhst_caddy_config:/config
+volumes:
+  fhst_caddy_data:
+  fhst_caddy_config:

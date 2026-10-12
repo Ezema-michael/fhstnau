@@ -1,0 +1,11 @@
+services:
+  app:
+    networks:
+      default:
+      fhst_proxy:
+        aliases:
+          - fhst-app
+networks:
+  fhst_proxy:
+    external: true
+    name: fhst_proxy

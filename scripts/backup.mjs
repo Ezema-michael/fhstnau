@@ -1,0 +1,2 @@
+import {backup} from 'node:sqlite';import {mkdir} from 'node:fs/promises';import {join} from 'node:path';import {sqlite} from '../runtime/database.mjs';
+const dir=process.env.BACKUP_DIR||'/backups';await mkdir(dir,{recursive:true,mode:0o700});const name='fhst-'+new Date().toISOString().replace(/[:.]/g,'-')+'.sqlite';await backup(sqlite(),join(dir,name));console.log('Consistent SQLite snapshot created: '+name);console.log('Also back up uploads while the application is stopped; see DEPLOY-VPS.md.');

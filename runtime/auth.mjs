@@ -1,0 +1,18 @@
+import {randomBytes,randomUUID,scrypt as scryptCallback,timingSafeEqual,createHash} from 'node:crypto';
+import {promisify} from 'node:util';
+import {sqlite} from './database.mjs';
+const scrypt=promisify(scryptCallback);
+export const cookieName='fhst_session';
+export const sessionSeconds=8*60*60;
+export function normalEmail(value){return typeof value==='string'?value.trim().toLowerCase():'';}
+export function validEmail(email){return email.length<=254&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);}
+export function validPassword(value){return typeof value==='string'&&value.length>=12&&value.length<=128;}
+export async function hashPassword(password){if(!validPassword(password))throw Error('Use a password between 12 and 128 characters.');const salt=randomBytes(16).toString('hex');const result=await scrypt(password,salt,64,{N:16384,r:8,p:1});return salt+':'+result.toString('hex');}
+export async function verifyPassword(password,hash){const [salt,expected]=hash.split(':');if(!salt||!expected)return false;const actual=await scrypt(password,salt,64,{N:16384,r:8,p:1});const bytes=Buffer.from(expected,'hex');return actual.length===bytes.length&&timingSafeEqual(actual,bytes);}
+const digest=value=>createHash('sha256').update(value).digest('hex');
+export function getSession(token){if(typeof token!=='string'||!/^[a-f0-9]{64}$/.test(token))return null;return sqlite().prepare(`SELECT u.id,u.email,u.name,u.role,a.must_change AS mustChange FROM auth_sessions s JOIN users u ON u.id=s.user_id JOIN auth_accounts a ON a.user_id=u.id WHERE s.token_hash=? AND s.expires_at>?`).get(digest(token),Date.now())||null;}
+export function createSession(userId){const db=sqlite(),now=Date.now();db.prepare('DELETE FROM auth_sessions WHERE expires_at<=?').run(now);db.prepare('DELETE FROM auth_attempts WHERE window_start<?').run(now-86400000);const token=randomBytes(32).toString('hex');db.prepare('INSERT INTO auth_sessions VALUES(?,?,?)').run(digest(token),userId,now+sessionSeconds*1000);return token;}
+export function deleteSession(token){if(token)sqlite().prepare('DELETE FROM auth_sessions WHERE token_hash=?').run(digest(token));}
+export function takeAttempt(key,limit=10){const db=sqlite(),now=Date.now(),start=now-15*60*1000;const hashed=digest(key);db.prepare(`INSERT INTO auth_attempts VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET attempts=CASE WHEN window_start<? THEN 1 ELSE attempts+1 END,window_start=CASE WHEN window_start<? THEN excluded.window_start ELSE window_start END`).run(hashed,now,start,start);return db.prepare('SELECT attempts FROM auth_attempts WHERE key=?').get(hashed).attempts<=limit;}
+export function safeReturnTo(value){return typeof value==='string'&&value.startsWith('/')&&!value.startsWith('//')&&!/[\\\r\n]/.test(value)?value:'/portal';}
+export async function provisionAccount(email,name,role,password){email=normalEmail(email);if(!validEmail(email)||!name||name.length>120||!['author','reviewer','editor'].includes(role))throw Error('Supply a valid email, name and role.');const hash=await hashPassword(password),db=sqlite();db.exec('BEGIN IMMEDIATE');try{const existing=db.prepare('SELECT id FROM users WHERE email=?').get(email);const id=existing?.id||randomUUID();db.prepare(`INSERT INTO users(id,email,name,role,created_at) VALUES(?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,role=excluded.role`).run(id,email,name,role,Date.now());db.prepare('INSERT INTO auth_accounts VALUES(?,?,1) ON CONFLICT(user_id) DO UPDATE SET password_hash=excluded.password_hash,must_change=1').run(id,hash);db.prepare('DELETE FROM auth_sessions WHERE user_id=?').run(id);db.exec('COMMIT');return id;}catch(e){db.exec('ROLLBACK');throw e;}}

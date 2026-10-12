@@ -1,15 +1,13 @@
-# FHST Journal and Scientific Conference platform
+# FHST Journal and Scientific Conference — VPS edition
 
-Source exported from the current `fhst-digital-platform` Sites repository, commit `fb27111b134749ce578e93c8269c25ac0bdbda59`.
+Standalone Next.js/Node.js application with SQLite, private filesystem uploads and ordinary email/password accounts. Docker Compose persists the database and manuscripts, and defaults to private Faculty review.
 
-Includes the faculty website, journal and conference pages, author/reviewer/editor portal, editable content, publications, sample assets and database migrations.
+See [DEPLOY-VPS.md](DEPLOY-VPS.md) for installation, proxy configuration, accounts, updates and backups. Use the `vps-deployment` branch for VPS deployment; the Sites version remains separately hosted.
 
-## Hosting dependencies
+```bash
+pnpm install --frozen-lockfile
+pnpm build
+pnpm test:vps
+```
 
-This is a Cloudflare Worker/Vinext application using D1 (`DB`), R2 (`BUCKET`) and Sites-owned ChatGPT authentication. It is not yet a standalone VPS deployment. VPS hosting requires replacement authentication and database/storage adapters or an equivalent compatible runtime.
-
-Live database records, user accounts and uploaded manuscripts are not included. Included test assets are samples.
-
-Set `FHST_EDITOR_USER_ID` or `FHST_EDITOR_EMAIL` as server-side runtime configuration for the initial editor. The GitHub copy preserves environment-based editor configuration instead of the hosted owner's hardcoded identity. Never commit credentials.
-
-See [development instructions](README-DEVELOPMENT.md) for installation and build details.
+Copy `.env.example` to `.env` and configure your hostname before starting. Existing Sites data and uploaded files are not part of this repository and require separate migration. Public self-registration and email password recovery are not included in this Faculty-review edition.
